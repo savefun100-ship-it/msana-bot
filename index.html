@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Msana Restaurant</title>
+<script src="https://telegram.org"></script>
+<style>
+  :root { --bg: #0f172a; --card: #1e293b; --accent: #f59e0b; --text: #f8fafc; --muted: #94a3b8; }
+  * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { margin: 0; background: var(--bg); color: var(--text); padding-bottom: 90px; }
+  header { position: sticky; top: 0; z-index: 10; background: rgba(15,23,42,0.95); backdrop-filter: blur(8px); padding: 14px 16px 8px; border-bottom: 1px solid #334155; }
+  h1 { margin: 0; font-size: 20px; color: var(--accent); }
+  .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .tabs { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 4px; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; padding: 7px 14px; border-radius: 20px; background: var(--card); color: var(--text); border: 1px solid #334155; font-size: 13px; cursor: pointer; }
+  .tab.active { background: var(--accent); color: #0f172a; font-weight: 700; border-color: var(--accent); }
+  .list { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .item { background: var(--card); border-radius: 12px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #334155; }
+  .item-name { font-size: 15px; font-weight: 600; }
+  .item-price { font-size: 13px; color: var(--accent); margin-top: 3px; font-weight: 600; }
+  .qty-box { display: flex; align-items: center; gap: 10px; }
+  .btn-q { width: 32px; height: 32px; border-radius: 8px; border: none; background: #334155; color: #fff; font-size: 18px; font-weight: bold; cursor: pointer; }
+  .btn-q.plus { background: var(--accent); color: #0f172a; }
+  .qty-val { min-width: 18px; text-align: center; font-weight: 700; }
+  .bar { position: fixed; bottom: 0; left: 0; right: 0; background: #1e293b; border-top: 1px solid #334155; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; z-index: 20; }
+  .checkout-btn { background: var(--accent); color: #0f172a; border: none; padding: 11px 20px; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; }
+  .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 30; align-items: flex-end; }
+  .modal.open { display: flex; }
+  .sheet { background: #1e293b; width: 100%; max-height: 92vh; overflow-y: auto; border-radius: 20px 20px 0 0; padding: 18px 16px 28px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 5px; }
+  select, textarea { width: 100%; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 10px; padding: 10px; font-size: 14px; }
+  .telebirr-box { background: #0f172a; border: 1px dashed var(--accent); border-radius: 10px; padding: 12px; margin-top: 10px; font-size: 13px; line-height: 1.5; }
+  .ussd-row { display: flex; gap: 8px; margin-top: 8px; }
+  .ussd-btn { flex: 1; text-align: center; text-decoration: none; background: #0284c7; color: #fff; padding: 9px; border-radius: 8px; font-weight: 700; font-size: 13px; border: none; cursor: pointer; }
+  .copy-btn { flex: 1; background: #334155; color: #fff; padding: 9px; border-radius: 8px; font-weight: 700; font-size: 13px; border: none; cursor: pointer; }
+  .submit-btn { width: 100%; margin-top: 16px; padding: 13px; border-radius: 12px; border: none; background: #22c55e; color: #052e16; font-weight: 800; font-size: 16px; cursor: pointer; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🍽️ Msana Restaurant</h1>
+  <div class="sub">ምሳና ሬስቶራንት — Tap + to add items</div>
+  <div class="tabs" id="tabs"></div>
+</header>
+<div class="list" id="menuList"></div>
+<div class="bar" id="cartBar" style="display:none;">
+  <div>
+    <div style="font-size:12px;color:var(--muted);" id="barCount">0 items</div>
+    <div style="font-size:17px;font-weight:800;color:var(--accent);" id="barTotal">0 ETB</div>
+  </div>
+  <button class="checkout-btn" onclick="openCheckout()">View Cart & Checkout ➡️</button>
+</div>
+<div class="modal" id="modal">
+  <div class="sheet">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h2 style="margin:0;font-size:18px;">🛒 Your Order Summary</h2>
+      <button onclick="closeCheckout()" style="background:none;border:none;color:#94a3b8;font-size:22px;">✕</button>
+    </div>
+    <div id="summaryList" style="margin-top:10px;font-size:14px;line-height:1.6;"></div>
+    <label>🪑 Table or Order Type</label>
+    <select id="tableSelect">
+      <option value="Table 1">🪑 Table 1</option><option value="Table 2">🪑 Table 2</option><option value="Table 3">🪑 Table 3</option>
+      <option value="Table 4">🪑 Table 4</option><option value="Table 5">🪑 Table 5</option><option value="Table 6">🪑 Table 6</option>
+      <option value="Table 7">🪑 Table 7</option><option value="Table 8">🪑 Table 8</option><option value="Table 9">🪑 Table 9</option>
+      <option value="Table 10">🪑 Table 10</option><option value="Table 11">🪑 Table 11</option><option value="Table 12">🪑 Table 12</option>
+      <option value="Table 13">🪑 Table 13</option><option value="Table 14">🪑 Table 14</option><option value="Table 15">🪑 Table 15</option>
+      <option value="Takeaway / Delivery">🥡 Takeaway / Delivery</option>
+    </select>
+    <label>💳 Payment Method</label>
+    <select id="paySelect" onchange="toggleTelebirr()">
+      <option value="📲 Telebirr USSD (*127# -> 0911043647)">📲 Telebirr USSD (*127# -> 0911043647)</option>
+      <option value="📱 Telebirr App (0911043647)">📱 Telebirr App (0911043647)</option>
+      <option value="💵 Cash / At Table">💵 Pay Cash / At Table</option>
+    </select>
+    <div class="telebirr-box" id="telebirrBox">
+      📞 Pay to Msana Telebirr: <b style="color:#f59e0b;">0911043647</b><br>
+      1️⃣ Copy number & tap <b>Dial *127#</b> to pay via USSD.<br>
+      2️⃣ Tap <b>Send Order to Kitchen</b> below (you can attach your receipt screenshot in chat!).
+      <div class="ussd-row">
+        <a class="ussd-btn" href="tel:*127%23">📲 Dial *127# USSD</a>
+        <button type="button" class="copy-btn" onclick="copyNum()">📋 Copy 0911043647</button>
+      </div>
+    </div>
+    <label>✍️ Last-Minute Note / Delivery Phone (Optional)</label>
+    <textarea id="noteInput" rows="2" placeholder="e.g., No chili, extra injera, or delivery phone number..."></textarea>
+    <button class="submit-btn" onclick="submitOrder()">✅ Send Order to Kitchen</button>
+  </div>
+</div>
+<script>
+const tg = window.Telegram.WebApp;
+tg.expand();
+
+const DATA = [
+  { id: "breakfast", title: "🍳 ቁርስ (Breakfast)", items: [
+    { id: "senber_half", name: "ሠንበር 1/2", price: 650 },
+    { id: "senber_quarter", name: "ሠንበር 1/4", price: 400 },
+    { id: "dulet", name: "ዱለት", price: 370 },
+    { id: "special_dulet", name: "ስፔሻል ዱለት", price: 420 },
+    { id: "enkulal_firfir", name: "እንቁላል ፍርፍር", price: 250 },
+    { id: "enkulal_besiga", name: "እንቁላል በስጋ", price: 370 },
+    { id: "be_enkulal_sils", name: "በእንቁላል ስልስ", price: 300 },
+    { id: "special_chechebsa", name: "ስፔሻል ጨጨብሳ", price: 320 },
+    { id: "chechebsa", name: "ጨጨብሳ", price: 270 },
+    { id: "timatim_sils", name: "ቲማቲም ስልስ", price: 250 },
+    { id: "firfir", name: "ፍርፍር", price: 220 },
+    { id: "yekurs_combo", name: "የቁርስ combo", price: 460 },
+    { id: "ruz_tibs_be_enkulal", name: "ሩዝ ጥብስ በእንቁላል", price: 320 }
+  ]},
+  { id: "fasting", title: "🥗 የጾም (Fasting)", items: [
+    { id: "tegabino", name: "ተጋቢኖ", price: 320 },
+    { id: "shiro", name: "ሽሮ", price: 260 },
+    { id: "shiro_shifnfn", name: "ሽሮ ሽፍንፍን", price: 280 },
+    { id: "gomen", name: "ጎመን", price: 260 },
+    { id: "dirkosh", name: "ድርቆሽ", price: 270 },
+    { id: "timatim", name: "ቲማቲም", price: 220 },
+    { id: "soya_tibs", name: "ሶያ ጥብስ", price: 260 },
+    { id: "dinich_tibs_firfir", name: "ድንች ጥብስ ፍርፍር", price: 280 },
+    { id: "ruz_tibs_atkilt", name: "ሩዝ ጥብስ በአትክልት", price: 270 },
+    { id: "ruz_tibs_soya", name: "ሩዝ ጥብስ በሶያ", price: 300 },
+    { id: "pasta_besigo", name: "ፖስታ በስጎ", price: 240 },
+    { id: "pasta_be_atkilt", name: "ፖስታ በአትክልት", price: 270 },
+    { id: "pasta_besoya", name: "ፖስታ በሶያ", price: 300 }
+  ]},
+  { id: "nonfasting", title: "🥩 የፍስክ (Non-Fasting)", items: [
+    { id: "tibs", name: "ጥብስ", price: 380 },
+    { id: "minchet", name: "ምንቸት", price: 350 },
+    { id: "banatu", name: "ባናቱ", price: 430 },
+    { id: "tibs_firfir", name: "ጥብስ ፍርፍር", price: 350 },
+    { id: "bozena", name: "ቦዘና", price: 350 },
+    { id: "gomen_besiga", name: "ጎመን በስጋ", price: 370 },
+    { id: "ruz_tibs_besiga", name: "ሩዝ ጥብስ በስጋ", price: 370 },
+    { id: "dirkosh_besiga", name: "ድርቆሽ በስጋ", price: 420 },
+    { id: "pasta_besiga", name: "ፓስታ በስጋ", price: 330 },
+    { id: "shiro_bekibe", name: "ሽሮ በቅቤ", price: 300 },
+    { id: "dirkosh_bekibe", name: "ድርቆሽ በቅቤ", price: 330 }
+  ]},
+  { id: "agelgil", title: "🧺 አገልግል (Agelgil)", items: [
+    { id: "agelgil_full", name: "የፍስክ ሙሉ (Full)", price: 850 },
+    { id: "agelgil_half", name: "የፍስክ ግማሽ (Half)", price: 500 }
+  ]},
+  { id: "drinks", title: "🥤 መጠጦች (Drinks)", items: [
+    { id: "water_2l", name: "ውሀ Water 2L", price: 70 },
+    { id: "water_1l", name: "ውሀ Water 1L", price: 60 },
+    { id: "water_half", name: "ውሀ Water 1/2", price: 50 },
+    { id: "softdrink", name: "ለስላሳ Softdrink", price: 80 },
+    { id: "single", name: "ሲንግል Single", price: 60 },
+    { id: "beer", name: "ቢራ Beer", price: 120 },
+    { id: "special_beer", name: "ስፔሻል ቢራ Special Beer", price: 130 },
+    { id: "ariki", name: "አረቄ Ariki", price: 70 },
+    { id: "coffee", name: "ቡና Coffee", price: 50 },
+    { id: "tea", name: "ሻይ Tea", price: 40 }
+  ]}
+];
+
+let activeCat = DATA.id;
+const cart = {};
+function findItem(id) { for (const c of DATA) { const f = c.items.find(i => i.id === id); if (f) return f; } }
+function renderTabs() { document.getElementById("tabs").innerHTML = DATA.map(c => `<button class="tab ${c.id === activeCat ? 'active' : ''}" onclick="activeCat='${c.id}';renderTabs();renderMenu();">${c.title}</button>`).join(""); }
+function renderMenu() {
+  const cat = DATA.find(c => c.id === activeCat);
+  document.getElementById("menuList").innerHTML = cat.items.map(i => {
+    const q = cart[i.id] || 0;
+    return `<div class="item"><div><div class="item-name">${i.name}</div><div class="item-price">${i.price} ETB</div></div><div class="qty-box">${q > 0 ? `<button class="btn-q" onclick="upd('${i.id}',-1)">−</button><span class="qty-val">${q}</span>` : ""}<button class="btn-q plus" onclick="upd('${i.id}',1)">+</button></div></div>`;
+  }).join("");
+}
+function upd(id, d) { cart[id] = (cart[id] || 0) + d; if (cart[id] <= 0) delete cart[id]; renderMenu(); updateBar(); }
+function updateBar() {
+  let count = 0, total = 0;
+  for (const [id, q] of Object.entries(cart)) { count += q; total += findItem(id).price * q; }
+  document.getElementById("cartBar").style.display = count > 0 ? "flex" : "none";
+  document.getElementById("barCount").innerText = `${count} item(s)`;
+  document.getElementById("barTotal").innerText = `${total} ETB`;
+}
+function openCheckout() {
+  let html = "", total = 0;
+  for (const [id, q] of Object.entries(cart)) { const it = findItem(id), sub = it.price * q; total += sub; html += `<div>• ${it.name} x${q} = <b>${sub} ETB</b></div>`; }
+  html += `<div style="margin-top:8px;font-size:16px;color:#f59e0b;"><b>Total: ${total} ETB</b></div>`;
+  document.getElementById("summaryList").innerHTML = html;
+  document.getElementById("modal").classList.add("open");
+}
+function closeCheckout() { document.getElementById("modal").classList.remove("open"); }
+function toggleTelebirr() { document.getElementById("telebirrBox").style.display = document.getElementById("paySelect").value.includes("Telebirr") ? "block" : "none"; }
+function copyNum() { navigator.clipboard?.writeText("0911043647"); alert("Copied: 0911043647"); }
+function submitOrder() {
+  const items = []; let total = 0;
+  for (const [id, q] of Object.entries(cart)) { const it = findItem(id); items.push({ name: it.name, qty: q, price: it.price }); total += it.price * q; }
+  tg.sendData(JSON.stringify({ items, total, table: document.getElementById("tableSelect").value, payment: document.getElementById("paySelect").value, note: document.getElementById("noteInput").value.trim() || "None" }));
+}
+
+renderTabs(); renderMenu();
+</script>
+</body>
+</html>
